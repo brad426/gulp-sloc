@@ -62,7 +62,12 @@ function gulpSloc(options) {
   }, (options.reportType === 'json' ? writeJsonReport : printReport));
 
   function printReport(cb) {
+
     log('-------------------------------');
+    
+    if(options.title)
+      log('SLOC:', options.title);
+
     log('        physical lines: ' + colors.green(String(totals.total)));
     log('  lines of source code: ' + colors.green(String(totals.source)));
     log('         total comment: ' + colors.cyan(String(totals.comment)));

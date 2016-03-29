@@ -102,6 +102,12 @@ gulp.task('sloc', function(){
 
 Would output the sloc results in the file `./reports/testSloc.json`.
 
+#### options.title
+Type: `String`
+Default: undefined
+
+ Print out a title before the SLOC results, useful if you have multiple tasks that will be reporting SLOC stats, and you need to identify which stats belong to which task.
+
 ## Supported Languages and Extensions
 
 - Assembly
