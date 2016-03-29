@@ -1,16 +1,18 @@
 'use strict';
 
 var path = require('path');
-var _ = require('lodash');
-var es = require('event-stream');
+var through = require('through2');
+var sloc  = require('sloc');
 var gutil = require('gulp-util');
-var sloc = require('sloc');
+var _ = require('underscore');
+var PluginError = gutil.PluginError;
+var File = gutil.File;
+var log = gutil.log;
+var colors = gutil.colors;
+
+const PLUGIN_NAME = 'gulp-sloc';
 
 function gulpSloc(options) {
-  var supportedExtensions = ['js', 'cc', 'c', 'coffeescript', 'coffee', 'python', 'py', 'java', 'php'];
-  var log = gutil.log;
-  var colors = gutil.colors;
-  var File = gutil.File;
 
   options = _.extend({
     tolerant: false,
@@ -19,76 +21,79 @@ function gulpSloc(options) {
   }, (options || {}));
 
   if (options.reportType === 'json' && _.isEmpty(options.reportFile)) {
-    throw new gutil.PluginError('gulp-sloc', 'Invalid report file. Provide a valid file name for reportFile in options.');
+    throw new PluginError(PLUGIN_NAME, 'Invalid report file. Provide a valid file name for reportFile in options.');
+    return;
   }
 
-  return (function () {
+  var totals = {};
+  totals.fileCount = 0;
 
-    var counters = { loc: 0, sloc: 0, cloc: 0, scloc: 0, mcloc: 0, nloc: 0, file: 0 };
-
-    function writeJsonReport() {
-      /*jshint validthis: true*/
-
-      var reportFile = new File({
-        path: options.reportFile,
-        contents: new Buffer(JSON.stringify(counters))
-      });
-
-      this.emit('data', reportFile);
-      this.emit('end');
+  return through.obj(function(file, enc, cb) {
+    if (file.isNull()) {
+      // return empty file
+      return cb(null, file);
     }
+    if (file.isStream()) {
+      this.emit('error', new PluginError(PLUGIN_NAME, 'Streams are not supported!'));
+      return cb();
+    }
+    if (file.isBuffer()) {
 
-    function calculateSloc(file) {
-      var source = file.contents.toString('utf8');
       var ext = path.extname(file.path);
-
-      if (!ext)
-        return;
-
       ext = (ext.charAt(0) === '.') ? ext.substr(1, ext.length) : ext;
 
-      // if we're tolerant and we didnt find the file extension, treat as JavaScript file
-      // else say b'bye!
-      if (options.tolerant && supportedExtensions.indexOf(ext) < 0) ext = 'js';
-      else if (supportedExtensions.indexOf(ext) < 0) return;
+      if(sloc.extensions.indexOf(ext) < 0 && options.tolerant) {
+        ext = 'js'; // Default to JS
+      }
+      else if (sloc.extensions.indexOf(ext) < 0) {
+        this.emit('error', new PluginError(PLUGIN_NAME, 'Unsupported extension ' + file.path ));
+        return cb();
+      }
+      var stats = sloc(file.contents.toString('utf8'), ext);
 
-      var stats = sloc(source, ext);
-
-      // iterates through loc, sloc, cloc, scloc, mcloc, nloc
-      Object.getOwnPropertyNames(stats).forEach(function (key) {
-        counters[key] += stats[key];
-      });
-
-      counters.file += 1;
+      for(var prop in stats) {
+        if(totals[prop] === undefined) totals[prop] = 0;
+        totals[prop] += stats[prop];
+      }
     }
 
-    function printReport() {
-      /*jshint validthis: true*/
+    totals.fileCount++;
+    cb(null, file);
+  }, (options.reportType === 'json' ? writeJsonReport : printReport));
 
-      log('-------------------------------');
-      log('        physical lines : ' + colors.green(String(counters.loc)));
-      log('  lines of source code : ' + colors.green(String(counters.sloc)));
-      log('         total comment : ' + colors.cyan(String(counters.cloc)));
-      log('            singleline : ' + String(counters.scloc));
-      log('             multiline : ' + String(counters.mcloc));
-      log('                 empty : ' + colors.red(String(counters.nloc)));
-      log('');
-      log('  number of files read : ' + colors.green(String(counters.file)));
+  function printReport(cb) {
+    log('-------------------------------');
+    log('        physical lines: ' + colors.green(String(totals.total)));
+    log('  lines of source code: ' + colors.green(String(totals.source)));
+    log('         total comment: ' + colors.cyan(String(totals.comment)));
+    log('            singleline: ' + String(totals.single));
+    log('             multiline: ' + String(totals.block));
+    log('                 mixed: ' + String(totals.mixed));
+    log('                 empty: ' + colors.red(String(totals.empty)));
+    log('');
+    log('  number of files read: ' + colors.green(String(totals.fileCount)));
 
-      var modeMessage = options.tolerant ?
-                    colors.yellow('         tolerant mode ') :
-                    colors.red('           strict mode ');
+    var modeMessage = options.tolerant ?
+                  colors.yellow('         tolerant mode ') :
+                  colors.red('           strict mode ');
 
-      log(modeMessage);
-      log('-------------------------------');
+    log(modeMessage);
+    log('-------------------------------');
 
-      this.emit('end');
-    }
+    cb();
+  }
 
-    var last = options.reportType === 'json' ? writeJsonReport : printReport;
+  function writeJsonReport(cb) {
+    var reportFile = new File({
+      path: options.reportFile,
+      contents: new Buffer(JSON.stringify(totals))
+    });
 
-    return es.through(calculateSloc, last);
-  })();
+    this.push(reportFile);
+
+    cb();
+  }
 }
 
+// Exporting the plugin main function
 module.exports = gulpSloc;

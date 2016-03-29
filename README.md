@@ -104,12 +104,51 @@ Would output the sloc results in the file `./reports/testSloc.json`.
 
 ## Supported Languages and Extensions
 
-- JavaScript - `js`
-- CoffeeScript - `coffee` or `coffeescript`
-- C / C++ - `c` or `cc`
-- Python - `py`
-- Java - `java`
-- PHP - `php`
+- Assembly
+- CoffeeScript / IcedCoffeeScript
+- C / C++
+- C#
+- Clojure / ClojureScript
+- CSS / SCSS / SASS / LESS / Stylus
+- Crystal
+- Erlang
+- Go
+- Groovy
+- HTML
+- Handlebars
+- Haskell
+- Haxe
+- Hilbert
+- hy
+- Jade
+- Java
+- JavaScript
+- JSX
+- Julia
+- Lua
+- LiveScript
+- Nix
+- Mochi
+- Monkey
+- Mustache
+- Nim
+- OCaml
+- Perl 5
+- Python
+- PHP
+- R
+- Racket
+- Ruby
+- Rust
+- Scala
+- Squirrel
+- SVG
+- Swift
+- Objective-C / Objective-C++
+- Typescript
+- Visual Basic
+- Yaml
+- XML
 
 ## Contributing
 
